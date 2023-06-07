@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 app = FastAPI()
 
-# Mocked database
+# Dummy database
 database = [
     {
         "tradeId": "1",
@@ -50,7 +50,6 @@ database = [
         },
         "trader": "John"
     },
-    # Add more trades here...
 ]
 
 
@@ -58,6 +57,7 @@ class TradeDetails(BaseModel):
     buySellIndicator: str = Field(description="A value of BUY for buys, SELL for sells.")
     price: float = Field(description="The price of the Trade.")
     quantity: int = Field(description="The amount of units traded.")
+
 
 class Trade(BaseModel):
     assetClass: Optional[str] = Field(alias="assetClass", default=None, description="The asset class of the instrument traded. E.g. Bond, Equity, FX...etc")
@@ -69,6 +69,7 @@ class Trade(BaseModel):
     tradeId: str = Field(alias="tradeId", default=None, description="The unique ID of the trade")
     trader: str = Field(description="The name of the Trader")
 
+
 @app.get("/trades", response_model=List[Trade])
 def get_trades(
     search: Optional[str] = Query(None, description="Search text across fields"),
@@ -78,7 +79,9 @@ def get_trades(
     minPrice: Optional[float] = Query(None, description="Minimum value for tradeDetails.price"),
     maxPrice: Optional[float] = Query(None, description="Maximum value for tradeDetails.price"),
     tradeType: Optional[str] = Query(None, description="Trade type (BUY or SELL)"),
-    sort: Optional[str] = Query(None, description="Field to sort by")
+    sort: Optional[str] = Query(None, description="Field to sort by"),
+    limit: Optional[int] = Query(None, description="Maximum number of trades to return"),
+    offset: Optional[int] = Query(0, description="Number of trades to skip")
 ):
     trades = database
 
@@ -103,7 +106,6 @@ def get_trades(
     if tradeType:
         trades = [trade for trade in trades if trade.get("tradeDetails").get("buySellIndicator") == tradeType.upper()]
 
-
     if sort:
         reverse = False
         if sort.startswith("-"):
@@ -117,7 +119,11 @@ def get_trades(
         else:
             trades = sorted(trades, key=lambda x: x.get(sort, ""), reverse=reverse)
 
+    if limit:
+        trades = trades[offset : offset + limit]
+
     return trades
+
 
 @app.get("/trades/{trade_id}", response_model=Trade)
 def get_trade_by_id(trade_id: str):
